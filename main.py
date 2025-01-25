@@ -1,5 +1,6 @@
-# module_14_4.py
-# 25.01.2025 Задача "Продуктовая база"
+# module_14_5.py
+# 25.01.2025 Задача "Регистрация покупателей"
+
 
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -10,6 +11,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import asyncio
 
 from crud_functions import *
+initiate_db()
 
 api = 'ключ'
 bot = Bot(token=api)
@@ -18,7 +20,7 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 start_menu = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text='Рассчитать'), KeyboardButton(text='Информация')],
-        [KeyboardButton(text='Купить')],
+        [KeyboardButton(text='Купить'), KeyboardButton(text='Регистрация')],
     ], resize_keyboard=True
 )
 
@@ -37,6 +39,46 @@ inline_menu.row(Product1)
 inline_menu.insert(Product2)
 inline_menu.insert(Product3)
 inline_menu.insert(Product4)
+
+
+class RegistrationState(StatesGroup):
+    username = State()
+    email = State()
+    age = State()
+    balance = 1000
+
+
+@dp.message_handler(text='Регистрация')
+async def sing_up(message):
+    await message.answer('Введите имя пользователя (только латинский алфавит):')
+    await RegistrationState.username.set()
+
+
+@dp.message_handler(state=RegistrationState.username)
+async def set_username(message, state):
+    if is_included(message.text) == False:
+        await state.update_data(username=message.text)
+        await message.answer('Введите свой email:')
+        await RegistrationState.email.set()
+    else:
+        await message.answer('Пользователь существует, введите другое имя')
+        await RegistrationState.username.set()
+
+
+@dp.message_handler(state=RegistrationState.email)
+async def set_email(message, state):
+    await state.update_data(email=message.text)
+    await message.answer('Введите свой возраст:')
+    await RegistrationState.age.set()
+
+
+@dp.message_handler(state=RegistrationState.age)
+async def set_age(message, state):
+    await state.update_data(age=message.text)
+    user_data = await state.get_data()
+    add_user(user_data["username"], user_data["email"], user_data["age"])
+    await message.answer('Регистрация прошла успешно', reply_markup=start_menu)
+    await state.finish()
 
 
 class UserState(StatesGroup):
